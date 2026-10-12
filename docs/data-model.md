@@ -1,38 +1,14 @@
-```markdown
 # QuickNotes Data Model
 
 ## Entities & Schemas
-
 1. **`users`**: Stores user account profiles.
-   - `id` (INTEGER, PK, Auto-increment)
-   - `username` (TEXT, Unique, Not Null)
-   - `email` (TEXT, Unique, Not Null)
-
 2. **`notes`**: Stores note content.
-   - `id` (INTEGER, PK, Auto-increment)
-   - `user_id` (INTEGER, FK referencing `users(id)`, Not Null)
-   - `title` (TEXT, Not Null)
-   - `body` (TEXT)
-   - `created_at` (DATETIME, Default CURRENT_TIMESTAMP)
-
 3. **`tags`**: Stores custom labels for categorizing notes.
-   - `id` (INTEGER, PK, Auto-increment)
-   - `name` (TEXT, Not Null)
-
 4. **`note_tags`**: Join table connecting notes and tags (many-to-many relationship).
-   - `note_id` (INTEGER, FK referencing `notes(id)`, Not Null)
-   - `tag_id` (INTEGER, FK referencing `tags(id)`, Not Null)
-   - Primary Key: (`note_id`, `tag_id`)
 
 ---
 
-## Relationships Explanation
-- **One-to-Many (`users` to `notes`)**: One user can author multiple notes, but each note belongs to exactly one user.
-- **Many-to-Many (`notes` to `tags`)**: A note can have multiple tags, and a tag can be applied to multiple notes. This is resolved using an intermediate join table (`note_tags`).
-
----
-
-## CREATE TABLE Statements
+## SQL Table Creation Schema
 ```sql
 CREATE TABLE users (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -61,3 +37,33 @@ CREATE TABLE note_tags (
     FOREIGN KEY (note_id) REFERENCES notes(id) ON DELETE CASCADE,
     FOREIGN KEY (tag_id) REFERENCES tags(id) ON DELETE CASCADE
 );
+Recommended Index
+Index on notes(user_id):
+
+Reason: Users frequently query their own notes list (WHERE user_id = ?). Creating an index on user_id allows the database engine to locate user notes instantly without performing a sequential full-table scan across millions of rows.
+
+SQL vs. NoSQL Justification
+For QuickNotes, SQL (Relational Database) is the optimal choice. Relational databases excel at enforcing strict data integrity rules, foreign key constraints (ensuring notes always tie back to valid users), and handling structured transactional data. While NoSQL offers flexible document storage, a note-taking application relies heavily on consistent relationships, user ownership validation, and joining tags with notes, making a relational SQL model far more robust and reliable.
+
+Example Queries
+Get all notes for a specific user:
+
+SQL
+SELECT id, title, body, created_at 
+FROM notes 
+WHERE user_id = 7 
+ORDER BY created_at DESC;
+Get all tags associated with a specific note using a JOIN:
+
+SQL
+SELECT t.name 
+FROM tags t
+JOIN note_tags nt ON t.id = nt.tag_id
+WHERE nt.note_id = 42;
+Count the total number of notes created by each user:
+
+SQL
+SELECT u.username, COUNT(n.id) AS note_count
+FROM users u
+LEFT JOIN notes n ON u.id = n.user_id
+GROUP BY u.id, u.username;
